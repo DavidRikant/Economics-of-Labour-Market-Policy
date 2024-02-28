@@ -1,0 +1,713 @@
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/davidrikant/Downloads/School/ECON 480 - Fall 2023/Term Paper - David Rikant 301360869.log
+  log type:  text
+ opened on:   5 Dec 2023, 10:18:47
+
+. 
+. * Reading in the 2021 Census Individual PUMF data
+. use "$data/ipumf_2021_final_en.dta", clear
+
+. 
+. ****************************************
+. * CREATING SAMPLE OF INTEREST VARIABLES
+. ****************************************
+. 
+. * Creating restrictions for the sample:
+. keep if agegrp >= 8 & agegrp <= 16 & ///
+>         hdgree < 88 & ///
+>         cow < 9 & ///
+>         fptwk < 9 & ///
+>         marsth < 8 & ///
+>         empin > 0 & empin < 88888888
+(544,746 observations deleted)
+
+. 
+. * Transforming employment income variable into a logarithm:
+. gen logincome = ln(empin)
+
+. 
+. * Defining the agegrp term, each value is associated with a 5 year period beginning at 20 and ending at 64 years of age. All NA values have been removed prior in the restrictions command.
+. tab agegrp
+
+              age |      Freq.     Percent        Cum.
+------------------+-----------------------------------
+   20 to 24 years |     41,160        9.44        9.44
+   25 to 29 years |     50,711       11.63       21.07
+   30 to 34 years |     53,321       12.23       33.29
+   35 to 39 years |     53,721       12.32       45.61
+   40 to 44 years |     51,434       11.79       57.40
+   45 to 49 years |     48,977       11.23       68.63
+   50 to 54 years |     48,996       11.23       79.87
+   55 to 59 years |     50,400       11.56       91.42
+   60 to 64 years |     37,402        8.58      100.00
+------------------+-----------------------------------
+            Total |    436,122      100.00
+
+. 
+. * Creating region variables using the province PR variable, seperating them by their respective zones
+. gen West = (pr == 59 | pr == 48 | pr == 47)
+
+. gen North = pr == 70
+
+. gen Center = (pr == 46 | pr == 35 | pr == 24)
+
+. gen East = (pr == 10 | pr == 11 | pr == 12 | pr == 13)
+
+. global region "West North East"
+
+. 
+. * In addition we are going to include the gender variable as a new variable "Gender":
+. gen Gender = (gender == 1)
+
+. label variable Gender "dummy gender = 1 if Woman+"
+
+. label define GEN_value 0 "Man+" 1 "Woman+"
+
+. label values Gender GEN_value
+
+. 
+. * Next, we will be including educational attainment. There are N/A values present within the "hdgree" variable labelled "88 and 99", which will be removed. Additionally, only a few educational attai
+> nments will be used in this sample.
+. 
+. gen NoCDoD = (hdgree == 1) // no certificate, diploma, or degree
+
+. label variable NoCDoD "dummy no education = 1 if received no certificate, diploma, or degree"
+
+. label define nocdod_value 0 "Other" 1 "no certificate, diploma, or degree"
+
+. label values NoCDoD nocdod_value
+
+. 
+. gen highschool = (hdgree == 2) // highschool diploma
+
+. label variable highschool "dummy highschool education = 1 if completed highschool"
+
+. label define highschool_value 0 "Other" 1 "High (secondary) school diploma or equivalency certificate"
+
+. label values highschool highschool_value
+
+. 
+. gen somecollege = (hdgree == 5 | hdgree == 6 | hdgree == 7) // attained some college
+
+. label variable somecollege "dummy college education = 1 if recieved some college education"
+
+. label define somecollege_value 0 "Other" 1 "Program of minimum 3 months to more than 2 years, from College, CEGEP, or other non-university certificates or diplomas"
+
+. label values somecollege somecollege_value
+
+. 
+. gen bachelors = (hdgree == 9) // Bachelor's degree
+
+. label variable bachelors "dummy bachelor education = 1 if completed an bachelor's degree"
+
+. label define bachelors_value 0 "Other" 1 "Bachelor's degree"
+
+. label values bachelors bachelors_value
+
+. 
+. gen masters = (hdgree == 12) // Master's degree
+
+. label variable masters "dummy masters education = 1 if completed a Master's degree"
+
+. label define masters_value 0 "Other" 1 "Master's degree"
+
+. label values masters masters_value
+
+. 
+. * Grouping together the education dummy variables
+. global education "NoCDoD highschool somecollege bachelors masters"
+
+. 
+. * Creating a dummy variable for class of worker "COW" to specify that I am only interested in the Employee variable:
+. gen cow_emp = (cow == 1) // Idetifies as an Employee
+
+. label variable cow_emp "dummy employee class of worker = 1 if identifies as an employee"
+
+. label define cow_emp_value 0 "Other" 1 "Employee"
+
+. label values cow_emp cow_emp_value
+
+. 
+. * The primary variable of interest is marital status, specifically whether an individual is married or not married which will be a new variable named "Marstat":
+. cap gen Married = 0 // Not married
+
+. replace Married = 1 if (marsth == 2) // Married
+(200,902 real changes made)
+
+. 
+. **********************************************************************
+. * ESTIMATED AVERAGE EARNINGS IN EACH EDUCATION TYPE BY MARITAL STATUS
+. **********************************************************************
+. 
+. bys Married: summ  logincome if (NoCDoD & agegrp & Gender & cow_emp) [aw = weight]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 0
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |   5,677  210267.806    9.809833   1.335914          0   12.89503
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 1
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |   4,009  148478.726     9.91264   1.093755          0   12.99026
+
+
+. 
+. bys Married: summ  logincome if (highschool & agegrp & Gender & cow_emp) [aw = weight]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 0
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |  25,130  930719.658    9.910473   1.275095          0   12.99026
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 1
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |  15,826   586113.83    10.24779   1.133838          0   12.99026
+
+
+. 
+. bys Married: summ  logincome if (somecollege & agegrp & Gender & cow_emp) [aw = weight]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 0
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |  27,989  1036667.98    10.32991   1.067189          0   12.99026
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 1
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |  21,572  798930.371    10.46998   1.092055          0   12.99026
+
+
+. 
+. bys Married: summ  logincome if (bachelors & agegrp & Gender & cow_emp) [aw = weight]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 0
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |  27,228  1008471.96    10.54691   1.177915          0   12.99026
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 1
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |  24,373  902662.408    10.72726   1.147853          0   12.99026
+
+
+. 
+. bys Married: summ  logincome if (masters & agegrp & Gender & cow_emp) [aw = weight]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 0
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |   6,900  255573.471    10.81252   1.119084          0   12.99026
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-> Married = 1
+
+    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   logincome |   8,600  318510.987    10.86579   1.149969          0   12.99026
+
+
+. 
+. *************************
+. * DESCRIPTIVE STATISTICS
+. *************************
+. 
+. * Using and installing asdoc to create formatted Word document tables for the descriptive statistics
+. cap ssc install asdoc
+
+. 
+. * NON-weighted descriptive statistics estimated on the sample 
+. asdoc summ logincome Married Gender cow_emp $education $region i.agegrp
+(File Myfile.doc already exists, option append was assumed)
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+   logincome |    436,122    10.49435    1.290804          0   13.76329
+     Married |    436,122    .4606555    .4984502          0          1
+      Gender |    436,122    .4868638     .499828          0          1
+     cow_emp |    436,122    .8869674     .316633          0          1
+      NoCDoD |    436,122    .0686597    .2528748          0          1
+-------------+---------------------------------------------------------
+  highschool |    436,122    .2335837    .4231108          0          1
+ somecollege |    436,122    .2254209    .4178597          0          1
+   bachelors |    436,122    .2296536    .4206106          0          1
+     masters |    436,122    .0742957    .2622518          0          1
+        West |    436,122    .2810177    .4494966          0          1
+-------------+---------------------------------------------------------
+       North |    436,122     .002591    .0508361          0          1
+        East |    436,122    .0626293    .2422952          0          1
+             |
+      agegrp |
+20 to 24 ..  |    436,122    .0943773    .2923532          0          1
+25 to 29 ..  |    436,122    .1162771    .3205573          0          1
+30 to 34 ..  |    436,122    .1222617    .3275881          0          1
+-------------+---------------------------------------------------------
+35 to 39 ..  |    436,122    .1231788    .3286428          0          1
+40 to 44 ..  |    436,122    .1179349    .3225314          0          1
+45 to 49 ..  |    436,122    .1123011     .315737          0          1
+50 to 54 ..  |    436,122    .1123447    .3157904          0          1
+55 to 59 ..  |    436,122     .115564    .3197017          0          1
+-------------+---------------------------------------------------------
+60 to 64 ..  |    436,122    .0857604    .2800102          0          1
+Click to Open File:  Myfile.doc
+
+. 
+. * Weighted descriptive statistics estimated on the sample 
+. asdoc summ logincome Married Gender cow_emp $education $region i.agegrp [aw = weight]
+(File Myfile.doc already exists, option append was assumed)
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+   logincome |    436,122    10.49435    1.290804          0   13.76329
+     Married |    436,122    .4606555    .4984502          0          1
+      Gender |    436,122    .4868638     .499828          0          1
+     cow_emp |    436,122    .8869674     .316633          0          1
+      NoCDoD |    436,122    .0686597    .2528748          0          1
+-------------+---------------------------------------------------------
+  highschool |    436,122    .2335837    .4231108          0          1
+ somecollege |    436,122    .2254209    .4178597          0          1
+   bachelors |    436,122    .2296536    .4206106          0          1
+     masters |    436,122    .0742957    .2622518          0          1
+        West |    436,122    .2810177    .4494966          0          1
+-------------+---------------------------------------------------------
+       North |    436,122     .002591    .0508361          0          1
+        East |    436,122    .0626293    .2422952          0          1
+             |
+      agegrp |
+20 to 24 ..  |    436,122    .0943773    .2923532          0          1
+25 to 29 ..  |    436,122    .1162771    .3205573          0          1
+30 to 34 ..  |    436,122    .1222617    .3275881          0          1
+-------------+---------------------------------------------------------
+35 to 39 ..  |    436,122    .1231788    .3286428          0          1
+40 to 44 ..  |    436,122    .1179349    .3225314          0          1
+45 to 49 ..  |    436,122    .1123011     .315737          0          1
+50 to 54 ..  |    436,122    .1123447    .3157904          0          1
+55 to 59 ..  |    436,122     .115564    .3197017          0          1
+-------------+---------------------------------------------------------
+60 to 64 ..  |    436,122    .0857604    .2800102          0          1
+Click to Open File:  Myfile.doc
+
+. 
+. ****************************************
+. * ESTIMATING MULTIPLE LINEAR REGRESSION
+. ****************************************
+. 
+. * Regression of the specified model
+. xi: reg logincome Married Gender cow_emp $education $region i.agegrp [aw = weight], r
+i.agegrp          _Iagegrp_8-16       (naturally coded; _Iagegrp_8 omitted)
+(sum of wgt is 16,152,712.354732)
+
+Linear regression                               Number of obs     =    436,122
+                                                F(19, 436102)     =    3786.42
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1650
+                                                Root MSE          =     1.1796
+
+------------------------------------------------------------------------------
+             |               Robust
+   logincome | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     Married |   .0803749   .0038829    20.70   0.000     .0727646    .0879852
+      Gender |  -.3979088   .0036462  -109.13   0.000    -.4050553   -.3907623
+     cow_emp |   .8214486   .0083086    98.87   0.000     .8051639    .8377333
+      NoCDoD |  -.5434903   .0084545   -64.28   0.000     -.560061   -.5269197
+  highschool |  -.3069887   .0058305   -52.65   0.000    -.3184164    -.295561
+ somecollege |  -.0730916   .0056472   -12.94   0.000    -.0841599   -.0620233
+   bachelors |   .1387539   .0058144    23.86   0.000     .1273579    .1501499
+     masters |   .2570834   .0079871    32.19   0.000     .2414288    .2727379
+        West |   .0547745   .0041398    13.23   0.000     .0466606    .0628884
+       North |   .3838161   .0334586    11.47   0.000     .3182383    .4493939
+        East |  -.1010957   .0071458   -14.15   0.000    -.1151011   -.0870902
+  _Iagegrp_9 |   .6568202     .00868    75.67   0.000     .6398077    .6738327
+ _Iagegrp_10 |   .9159243   .0086652   105.70   0.000     .8989409    .9329078
+ _Iagegrp_11 |   1.054542   .0087936   119.92   0.000     1.037307    1.071777
+ _Iagegrp_12 |    1.17307    .008722   134.50   0.000     1.155975    1.190164
+ _Iagegrp_13 |   1.234869    .008726   141.52   0.000     1.217766    1.251972
+ _Iagegrp_14 |   1.245368   .0087717   141.98   0.000     1.228176    1.262561
+ _Iagegrp_15 |   1.165182   .0089505   130.18   0.000     1.147639    1.182725
+ _Iagegrp_16 |   .9729014   .0101021    96.31   0.000     .9531017    .9927012
+       _cons |   9.033654   .0115495   782.17   0.000     9.011018    9.056291
+------------------------------------------------------------------------------
+
+. outreg2 using reg_table_1.doc, replace ctitle(General Model) label(insert) sdec (4)addnote (Notes: This regression table is adjusted via heteroskedasticity-robust and has been weighted by an average
+>  weight. Also note that the variables _Iagegrp_8-16 are the same dummy variables as the ones present in the descriptive statistics tables in part a.)
+reg_table_1.doc
+dir : seeout
+
+. 
+. * Creating global macro-variables for the independent variable (Y), and the dependent variables (X), dependent variables without married (mar_X), and dependent variables without Gender (gen_X)
+. global Y "logincome"
+
+. global X "Married Gender cow_emp $education $region _I*"
+
+. global mar_X "Gender cow_emp $education $region _I*" // without Married variable
+
+. global gen_X "Married cow_emp $education $region _I*" // without Gender variable
+
+. 
+. * Regression of logincome by marital status
+. bys Married: outreg2 using reg_table_2.doc, replace: reg $Y $mar_X, robust
+
+Linear regression                               Number of obs     =    235,220
+                                                F(18, 235201)     =    2177.18
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1654
+                                                Root MSE          =     1.1893
+
+------------------------------------------------------------------------------
+             |               Robust
+   logincome | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Gender |  -.2617081    .005035   -51.98   0.000    -.2715766   -.2518396
+     cow_emp |   .8355634   .0131391    63.59   0.000     .8098112    .8613157
+      NoCDoD |  -.5333523    .011605   -45.96   0.000    -.5560977   -.5106068
+  highschool |  -.3100972    .007777   -39.87   0.000    -.3253399   -.2948545
+ somecollege |  -.0631395   .0075705    -8.34   0.000    -.0779774   -.0483016
+   bachelors |   .1448861   .0079405    18.25   0.000     .1293228    .1604493
+     masters |   .2592196   .0121772    21.29   0.000     .2353526    .2830867
+        West |   .0661193   .0058967    11.21   0.000     .0545619    .0776767
+       North |    .349522   .0476624     7.33   0.000     .2561048    .4429391
+        East |  -.1384075   .0102967   -13.44   0.000    -.1585888   -.1182261
+  _Iagegrp_9 |    .660977   .0090996    72.64   0.000     .6431419     .678812
+ _Iagegrp_10 |   .9446011   .0095063    99.37   0.000      .925969    .9632332
+ _Iagegrp_11 |   1.069715    .010226   104.61   0.000     1.049672    1.089758
+ _Iagegrp_12 |   1.180048   .0101618   116.13   0.000     1.160131    1.199964
+ _Iagegrp_13 |   1.232784    .010341   119.21   0.000     1.212516    1.253052
+ _Iagegrp_14 |   1.230136   .0105731   116.35   0.000     1.209413    1.250859
+ _Iagegrp_15 |   1.152817   .0108635   106.12   0.000     1.131524    1.174109
+ _Iagegrp_16 |   .9817123   .0130966    74.96   0.000     .9560432    1.007381
+       _cons |   8.944482   .0158254   565.20   0.000     8.913464    8.975499
+------------------------------------------------------------------------------
+
+Linear regression                               Number of obs     =    200,902
+                                                F(18, 200883)     =    1419.22
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1372
+                                                Root MSE          =     1.1626
+
+------------------------------------------------------------------------------
+             |               Robust
+   logincome | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      Gender |  -.5578333   .0052798  -105.65   0.000    -.5681815    -.547485
+     cow_emp |   .8200774   .0106844    76.75   0.000     .7991362    .8410186
+      NoCDoD |   -.544955   .0121948   -44.69   0.000    -.5688565   -.5210536
+  highschool |  -.2893286   .0087769   -32.96   0.000    -.3065311    -.272126
+ somecollege |  -.0855262   .0084402   -10.13   0.000    -.1020688   -.0689835
+   bachelors |   .1299209   .0085314    15.23   0.000     .1131995    .1466422
+     masters |   .2499434   .0107441    23.26   0.000     .2288852    .2710016
+        West |   .0430004   .0057841     7.43   0.000     .0316638     .054337
+       North |   .4269097   .0449752     9.49   0.000     .3387594      .51506
+        East |  -.0595053   .0097769    -6.09   0.000    -.0786678   -.0403428
+  _Iagegrp_9 |   .4241422   .0406412    10.44   0.000     .3444863    .5037981
+ _Iagegrp_10 |   .6284099   .0395071    15.91   0.000      .550977    .7058429
+ _Iagegrp_11 |    .785183   .0392583    20.00   0.000     .7082377    .8621284
+ _Iagegrp_12 |   .9076658    .039198    23.16   0.000     .8308387    .9844928
+ _Iagegrp_13 |   .9742711   .0391447    24.89   0.000     .8975484    1.050994
+ _Iagegrp_14 |   .9914717   .0391279    25.34   0.000     .9147819    1.068161
+ _Iagegrp_15 |   .9076793   .0392004    23.15   0.000     .8308474    .9845111
+ _Iagegrp_16 |   .6931603    .039667    17.47   0.000      .615414    .7709066
+       _cons |   9.458629   .0404594   233.78   0.000      9.37933    9.537929
+------------------------------------------------------------------------------
+reg_table_2.doc
+dir : seeout
+
+. 
+. * Regression of logincome by gender
+. bys Gender: outreg2 using reg_table_3.doc, replace: reg $Y $gen_X, robust
+
+Linear regression                               Number of obs     =    223,790
+                                                F(18, 223771)     =    1993.09
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1682
+                                                Root MSE          =     1.1596
+
+------------------------------------------------------------------------------
+             |               Robust
+   logincome | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     Married |   .2406253   .0053726    44.79   0.000     .2300952    .2511555
+     cow_emp |   .7979913   .0104362    76.46   0.000     .7775367     .818446
+      NoCDoD |   -.468831    .010267   -45.66   0.000    -.4889542   -.4487079
+  highschool |  -.2808728   .0073461   -38.23   0.000     -.295271   -.2664746
+ somecollege |  -.0541812    .007436    -7.29   0.000    -.0687556   -.0396068
+   bachelors |   .0771312   .0078208     9.86   0.000     .0618027    .0924598
+     masters |   .1686084   .0111653    15.10   0.000     .1467247    .1904921
+        West |   .0929044   .0056461    16.45   0.000     .0818381    .1039707
+       North |   .2405947   .0525121     4.58   0.000     .1376724    .3435171
+        East |  -.1021008   .0098397   -10.38   0.000    -.1213864   -.0828152
+  _Iagegrp_9 |   .6573722   .0122923    53.48   0.000     .6332796    .6814648
+ _Iagegrp_10 |   .9621963   .0120572    79.80   0.000     .9385644    .9858281
+ _Iagegrp_11 |   1.092336   .0122073    89.48   0.000      1.06841    1.116263
+ _Iagegrp_12 |    1.16719   .0123338    94.63   0.000     1.143016    1.191364
+ _Iagegrp_13 |   1.219584   .0123755    98.55   0.000     1.195329     1.24384
+ _Iagegrp_14 |    1.21643    .012502    97.30   0.000     1.191927    1.240934
+ _Iagegrp_15 |   1.132499   .0126767    89.34   0.000     1.107652    1.157345
+ _Iagegrp_16 |   .9399184   .0142578    65.92   0.000     .9119735    .9678634
+       _cons |   8.971957   .0152104   589.85   0.000     8.942145    9.001769
+------------------------------------------------------------------------------
+
+Linear regression                               Number of obs     =    212,332
+                                                F(18, 212313)     =    1615.45
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1454
+                                                Root MSE          =     1.1931
+
+------------------------------------------------------------------------------
+             |               Robust
+   logincome | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     Married |  -.0760565   .0055786   -13.63   0.000    -.0869904   -.0651226
+     cow_emp |   .8668274   .0135681    63.89   0.000     .8402342    .8934205
+      NoCDoD |  -.6605837    .014627   -45.16   0.000    -.6892523   -.6319151
+  highschool |  -.3321611   .0094877   -35.01   0.000    -.3507567   -.3135654
+ somecollege |  -.0875969    .008757   -10.00   0.000    -.1047604   -.0704335
+   bachelors |   .1882051   .0088717    21.21   0.000     .1708168    .2055935
+     masters |   .3337789   .0116277    28.71   0.000     .3109889    .3565689
+        West |   .0135654   .0060382     2.25   0.025     .0017306    .0254002
+       North |   .5214766   .0403523    12.92   0.000     .4423871    .6005662
+        East |  -.1039817   .0103078   -10.09   0.000    -.1241847   -.0837787
+  _Iagegrp_9 |   .6617513   .0121949    54.26   0.000     .6378495    .6856531
+ _Iagegrp_10 |   .8680929   .0124254    69.86   0.000     .8437394    .8924464
+ _Iagegrp_11 |   1.007946   .0126484    79.69   0.000      .983155    1.032736
+ _Iagegrp_12 |   1.170076   .0122798    95.28   0.000     1.146008    1.194144
+ _Iagegrp_13 |   1.242007   .0122467   101.42   0.000     1.218004     1.26601
+ _Iagegrp_14 |   1.267649   .0122453   103.52   0.000     1.243648    1.291649
+ _Iagegrp_15 |   1.192442   .0125817    94.78   0.000     1.167782    1.217102
+ _Iagegrp_16 |   .9938451   .0142741    69.63   0.000     .9658682    1.021822
+       _cons |   8.675564   .0178118   487.07   0.000     8.640653    8.710475
+------------------------------------------------------------------------------
+reg_table_3.doc
+dir : seeout
+
+. 
+. * Regression of logincome using mybswreg using bootstrap weights
+. mybswreg $Y $X [aw = weight], cmd(regress) bsweights(wt*) cmeanbs(50) level(95)
+ 
+1 bootstraps completed
+2 bootstraps completed
+3 bootstraps completed
+4 bootstraps completed
+5 bootstraps completed
+ 
+Results from BSWREG
+-------------------
+ 
+* The confidence intervals below are based on the normal distribution
+
+  +-----------------------------------------------------------------------------------+
+  |   Var_name        Coef       BSse      BSzstat   BSpvalue    BSilow95     BSiup95 |
+  |-----------------------------------------------------------------------------------|
+  |    Married    0.080375   0.052725     1.524425   0.127403   -0.022964    0.183713 |
+  |     Gender   -0.397909   0.037407   -10.637328   0.000000   -0.471225   -0.324593 |
+  |    cow_emp    0.821449   0.085714     9.583616   0.000000    0.653453    0.989445 |
+  |     NoCDoD   -0.543490   0.068126    -7.977764   0.000000   -0.677014   -0.409966 |
+  | highschool   -0.306989   0.066252    -4.633646   0.000004   -0.436840   -0.177137 |
+  |-----------------------------------------------------------------------------------|
+  | somecolleg   -0.073092   0.070446    -1.037550   0.299480   -0.211164    0.064981 |
+  |  bachelors    0.138754   0.061664     2.250143   0.024440    0.017894    0.259614 |
+  |    masters    0.257083   0.058415     4.400961   0.000011    0.142592    0.371575 |
+  |       West    0.054774   0.041169     1.330473   0.183363   -0.025916    0.135465 |
+  |      North    0.383816   0.302913     1.267082   0.205126   -0.209883    0.977515 |
+  |-----------------------------------------------------------------------------------|
+  |       East   -0.101096   0.095987    -1.053218   0.292241   -0.289227    0.087036 |
+  | _Iagegrp_9    0.656820   0.093222     7.045761   0.000000    0.474108    0.839532 |
+  | _Iagegrp_1    0.915924   0.092189     9.935317   0.000000    0.735238    1.096611 |
+  | _Iagegrp_1    1.054542   0.078918    13.362560   0.000000    0.899866    1.209218 |
+  | _Iagegrp_1    1.173070   0.091449    12.827641   0.000000    0.993834    1.352306 |
+  |-----------------------------------------------------------------------------------|
+  | _Iagegrp_1    1.234869   0.101719    12.139987   0.000000    1.035503    1.434235 |
+  | _Iagegrp_1    1.245368   0.073278    16.995056   0.000000    1.101746    1.388991 |
+  | _Iagegrp_1    1.165182   0.108995    10.690283   0.000000    0.951557    1.378807 |
+  | _Iagegrp_1    0.972901   0.103933     9.360877   0.000000    0.769197    1.176606 |
+  |      _cons    9.033654   0.085701   105.409546   0.000000    8.865685    9.201624 |
+  +-----------------------------------------------------------------------------------+
+ 
+Total bootstraps completed: 16
+
+. cap outreg2 using reg_table_4.doc, replace ctitle(Mybswreg Model) label
+
+. 
+. * Note, that due to mybswreg is an imported code function, it does not format properly into a Word document, therefore, the table was copied and pasted from the results command window of STATA direc
+> tly into the Word document. Minor manual adjustments were made as a result.
+. 
+. *******************************
+. * OAXACA-BLINDER DECOMPOSITION
+. *******************************
+. 
+. * installing the oaxaca package
+. cap ssc install oaxaca 
+
+. 
+. * Running the more generalized and simpler decomposition
+. outreg2 using obd_table_1.doc, replace: oaxaca $Y $mar_X, by(Married)
+
+Blinder-Oaxaca decomposition                    Number of obs     =    436,122
+                                                Model             =     linear
+Group 1: Married = 0                            N of obs 1        =    235,220
+Group 2: Married = 1                            N of obs 2        =    200,902
+
+   endowments: (X1 - X2) * b2
+ coefficients: X2 * (b1 - b2)
+  interaction: (X1 - X2) * (b1 - b2)
+
+------------------------------------------------------------------------------
+   logincome | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+overall      |
+     group_1 |   10.33251   .0026841  3849.47   0.000     10.32725    10.33777
+     group_2 |   10.68385   .0027924  3826.08   0.000     10.67837    10.68932
+  difference |   -.351339   .0038732   -90.71   0.000    -.3589304   -.3437476
+  endowments |  -.2239411   .0063009   -35.54   0.000    -.2362907   -.2115915
+coefficients |  -.0841581   .0040875   -20.59   0.000    -.0921695   -.0761466
+ interaction |  -.0432398   .0064555    -6.70   0.000    -.0558923   -.0305873
+-------------+----------------------------------------------------------------
+endowments   |
+      Gender |  -.0075519   .0008499    -8.89   0.000    -.0092176   -.0058861
+     cow_emp |   .0471476   .0009067    52.00   0.000     .0453705    .0489246
+      NoCDoD |   -.005939   .0004367   -13.60   0.000     -.006795    -.005083
+  highschool |  -.0191784   .0006798   -28.21   0.000    -.0205108   -.0178461
+ somecollege |  -.0003216    .000113    -2.85   0.004    -.0005432   -.0001001
+   bachelors |  -.0049773    .000357   -13.94   0.000     -.005677   -.0042776
+     masters |  -.0105251   .0004865   -21.63   0.000    -.0114787   -.0095715
+        West |  -.0025989   .0003496    -7.43   0.000    -.0032842   -.0019137
+       North |   .0001479   .0000681     2.17   0.030     .0000144    .0002814
+        East |   .0002398   .0000616     3.89   0.000      .000119    .0003606
+  _Iagegrp_9 |   .0598753   .0052514    11.40   0.000     .0495828    .0701677
+ _Iagegrp_10 |   .0198669   .0012872    15.43   0.000      .017344    .0223899
+ _Iagegrp_11 |  -.0278849   .0014868   -18.75   0.000    -.0307991   -.0249708
+ _Iagegrp_12 |  -.0476188   .0020654   -23.06   0.000    -.0516669   -.0435707
+ _Iagegrp_13 |  -.0623509   .0024573   -25.37   0.000    -.0671672   -.0575346
+ _Iagegrp_14 |  -.0669494   .0025786   -25.96   0.000    -.0720034   -.0618953
+ _Iagegrp_15 |  -.0574734    .002413   -23.82   0.000    -.0622028    -.052744
+ _Iagegrp_16 |  -.0378488    .002034   -18.61   0.000    -.0418354   -.0338622
+-------------+----------------------------------------------------------------
+coefficients |
+      Gender |   .1420104   .0034894    40.70   0.000     .1351714    .1488494
+     cow_emp |   .0132554    .009866     1.34   0.179    -.0060817    .0325925
+      NoCDoD |   .0007284    .001025     0.71   0.477    -.0012805    .0027374
+  highschool |  -.0041087   .0022997    -1.79   0.074    -.0086161    .0003987
+ somecollege |    .005001    .002586     1.93   0.053    -.0000674    .0100695
+   bachelors |    .003746   .0028948     1.29   0.196    -.0019277    .0094197
+     masters |   .0008999   .0015554     0.58   0.563    -.0021486    .0039483
+        West |   .0072504   .0025364     2.86   0.004     .0022792    .0122217
+       North |  -.0001861   .0001703    -1.09   0.275    -.0005199    .0001478
+        East |  -.0051131   .0009693    -5.28   0.000    -.0070128   -.0032133
+  _Iagegrp_9 |   .0095063   .0015305     6.21   0.000     .0065065    .0125061
+ _Iagegrp_10 |   .0332666    .003881     8.57   0.000       .02566    .0408732
+ _Iagegrp_11 |   .0404983   .0052378     7.73   0.000     .0302325    .0507641
+ _Iagegrp_12 |   .0398305   .0053926     7.39   0.000     .0292612    .0503998
+ _Iagegrp_13 |   .0379543    .005429     6.99   0.000     .0273136    .0485949
+ _Iagegrp_14 |   .0355047   .0055006     6.45   0.000     .0247237    .0462858
+ _Iagegrp_15 |   .0367007   .0055254     6.64   0.000     .0258711    .0475302
+ _Iagegrp_16 |   .0332442    .004322     7.69   0.000     .0247732    .0417152
+       _cons |  -.5141475    .038052   -13.51   0.000    -.5887281    -.439567
+-------------+----------------------------------------------------------------
+interaction  |
+      Gender |   .0040089   .0004601     8.71   0.000      .003107    .0049108
+     cow_emp |   .0008903   .0006628     1.34   0.179    -.0004088    .0021895
+      NoCDoD |   .0001264   .0001781     0.71   0.478    -.0002227    .0004756
+  highschool |  -.0013767    .000771    -1.79   0.074    -.0028878    .0001344
+ somecollege |   .0000842    .000052     1.62   0.105    -.0000177    .0001861
+   bachelors |  -.0005733   .0004435    -1.29   0.196    -.0014425    .0002958
+     masters |  -.0003906   .0006752    -0.58   0.563     -.001714    .0009328
+        West |  -.0013973   .0004898    -2.85   0.004    -.0023573   -.0004373
+       North |  -.0000268   .0000272    -0.98   0.325    -.0000802    .0000266
+        East |    .000318   .0000838     3.80   0.000     .0001538    .0004821
+  _Iagegrp_9 |   .0334335   .0053748     6.22   0.000      .022899    .0439679
+ _Iagegrp_10 |   .0099963   .0012053     8.29   0.000     .0076338    .0123587
+ _Iagegrp_11 |  -.0101048   .0013368    -7.56   0.000    -.0127248   -.0074849
+ _Iagegrp_12 |    -.01429   .0019519    -7.32   0.000    -.0181157   -.0104642
+ _Iagegrp_13 |  -.0165442   .0023781    -6.96   0.000    -.0212053   -.0118831
+ _Iagegrp_14 |  -.0161159   .0025061    -6.43   0.000    -.0210277    -.011204
+ _Iagegrp_15 |  -.0155219   .0023478    -6.61   0.000    -.0201235   -.0109202
+ _Iagegrp_16 |  -.0157559   .0020613    -7.64   0.000    -.0197959   -.0117159
+------------------------------------------------------------------------------
+obd_table_1.doc
+dir : seeout
+
+. 
+. * Running a more broken down version of the decomposition
+. outreg2 using obd_table_2.doc, replace: oaxaca logincome Gender cow_emp (region: $region) (age: _I*) (education: $education), by(Married)
+
+Blinder-Oaxaca decomposition                    Number of obs     =    436,122
+                                                Model             =     linear
+Group 1: Married = 0                            N of obs 1        =    235,220
+Group 2: Married = 1                            N of obs 2        =    200,902
+
+   endowments: (X1 - X2) * b2
+ coefficients: X2 * (b1 - b2)
+  interaction: (X1 - X2) * (b1 - b2)
+
+------------------------------------------------------------------------------
+   logincome | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+overall      |
+     group_1 |   10.33251   .0026841  3849.47   0.000     10.32725    10.33777
+     group_2 |   10.68385   .0027924  3826.08   0.000     10.67837    10.68932
+  difference |   -.351339   .0038732   -90.71   0.000    -.3589304   -.3437476
+  endowments |  -.2239411   .0063009   -35.54   0.000    -.2362907   -.2115915
+coefficients |  -.0841581   .0040875   -20.59   0.000    -.0921695   -.0761466
+ interaction |  -.0432398   .0064555    -6.70   0.000    -.0558923   -.0305873
+-------------+----------------------------------------------------------------
+endowments   |
+      Gender |  -.0075519   .0008499    -8.89   0.000    -.0092176   -.0058861
+     cow_emp |   .0471476   .0009067    52.00   0.000     .0453705    .0489246
+      region |  -.0022112   .0003689    -5.99   0.000    -.0029344   -.0014881
+         age |  -.2203841   .0061441   -35.87   0.000    -.2324262    -.208342
+   education |  -.0409414    .000862   -47.50   0.000    -.0426309    -.039252
+-------------+----------------------------------------------------------------
+coefficients |
+      Gender |   .1420104   .0034894    40.70   0.000     .1351714    .1488494
+     cow_emp |   .0132554    .009866     1.34   0.179    -.0060817    .0325925
+      region |   .0019513   .0028709     0.68   0.497    -.0036756    .0075782
+         age |   .2665057   .0353335     7.54   0.000     .1972533    .3357581
+   education |   .0062666   .0080033     0.78   0.434    -.0094196    .0219528
+       _cons |  -.5141475    .038052   -13.51   0.000    -.5887281    -.439567
+-------------+----------------------------------------------------------------
+interaction  |
+      Gender |   .0040089   .0004601     8.71   0.000      .003107    .0049108
+     cow_emp |   .0008903   .0006628     1.34   0.179    -.0004088    .0021895
+      region |  -.0011061    .000507    -2.18   0.029    -.0020998   -.0001125
+         age |  -.0449029   .0063598    -7.06   0.000    -.0573679   -.0324379
+   education |    -.00213   .0008402    -2.54   0.011    -.0037767   -.0004832
+------------------------------------------------------------------------------
+region: West North East
+age: _Iagegrp_9 _Iagegrp_10 _Iagegrp_11 _Iagegrp_12 _Iagegrp_13 _Iagegrp_14
+  _Iagegrp_15 _Iagegrp_16
+education: NoCDoD highschool somecollege bachelors masters
+obd_table_2.doc
+dir : seeout
+
+. 
+. ******************
+. * SAVING THE DATA
+. ******************
+. 
+. global out "$data"
+
+. cap save "$out/Term Paper - David Rikant 301360869.dta", replace
+
+. cap log close
